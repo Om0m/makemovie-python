@@ -9,106 +9,112 @@ now = datetime.datetime.now()
 
 rec_time = 3  # 録音時間[s]
 
+class AudioFilter():
+    def __init__(self):
+        # オーディオに関する設定
+        self.p = pyaudio.PyAudio()
+        self.channels = 2 # マイクがモノラルの場合は1にしないといけない
+        self.rate = 24000 # DVDレベルなので重かったら16000にする
+        self.format = pyaudio.paInt16
+        self.chunk = 1024
+        self.stream = self.p.open(
+                        format=self.format,
+                        channels=self.channels,
+                        rate=self.rate,
+                        output=True,
+                        input=True,
+                        frames_per_buffer=self.chunk,
+                        stream_callback=self.callback)
 
-##音声
-file_path = str(now)+".wav"  # 音声を保存するファイル名
-audio_fmt = pyaudio.paInt16  # 音声のフォーマット
-ch = 1  # チャンネル1(モノラル)
-sampling_rate = 11025  # サンプリング周波数
-chunk = 1024  # チャンク（データ点数）
-audio = pyaudio.PyAudio()
-audio_stream = audio.open(format=audio_fmt, channels=ch, rate=sampling_rate, input=True,
-                    frames_per_buffer=chunk)
+    # コールバック関数（再生が必要なときに呼び出される）
+    def callback(self, in_data, frame_count, time_info, status):
+        out_data = in_data
+        # data = self.stream.read(self.chunk)
+        #print(out_data)
+        frames.append(out_data)
+        return (out_data, pyaudio.paContinue)
+
+    def close(self):
+        self.p.terminate()
+
 frames = []
 
-##動画
-cap = cv2.VideoCapture(0)
-fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-fps = 40.0
-size = (640, 360)
-writer = cv2.VideoWriter(str(now)+'.mov', fmt, fps, size)
-cnt = 0
+if __name__ == "__main__":
+    # AudioFilterのインスタンスを作る場所
+    af = AudioFilter()
+    # ストリーミングを始める場所
+    af.stream.start_stream()
 
-# # 録音処理
-# frames = []
-# for i in range(0, int(sampling_rate / chunk * rec_time)):
-#     data = audio_stream.read(chunk)
-#     frames.append(data)
-#
-# print("recording  end...")
-#
-# # 録音終了処理
-# audio_stream.stop_stream()
-# audio_stream.close()
-# audio.terminate()
-#
-# # 録音データをファイルに保存
-# wav = wave.open(file_path, 'wb')
-# wav.setnchannels(ch)
-# wav.setsampwidth(audio.get_sample_size(audio_fmt))
-# wav.setframerate(sampling_rate)
-# wav.writeframes(b''.join(frames))
-# wav.close()
-while 1:
-    # try:
-    #     data = audio_stream.read(chunk)
-    #     frames.append(data)
-    #     print(data)
-    # except OSError as ex:
-    #     print(ex)
-    if cap.isOpened():
-        # 音声
+    ##動画
+    cap = cv2.VideoCapture(0)
+    fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    fps = 40.0
+    size = (640, 360)
+    writer = cv2.VideoWriter(str(now)+'.mov', fmt, fps, size)
+    cnt = 0
 
-        # 動画
-        _, frame = cap.read()
-        frame = cv2.resize(frame, size)
-        writer.write(frame)
+    while 1:
 
-        cv2.imshow('frame', frame)
-        if cv2.waitKey(1) == 13:
-            writer.release()
-            now = datetime.datetime.now()
-            writer = cv2.VideoWriter(str(now) + '.mov', fmt, fps, size)
-        elif cv2.waitKey(1) == 113:
-            break
+        if cap.isOpened():
+            # 音声
 
-        cnt += 1
-        sec = int(cnt / fps)
-        if(sec == rec_time):
-            print(cnt)
-            now = datetime.datetime.now()
-            # #音声
-            # # 録音終了処理
-            # audio_stream.stop_stream()
-            # audio_stream.close()
-            # audio.terminate()
-            # # 録音データをファイルに保存
-            # wav = wave.open(file_path, 'wb')
-            # wav.setnchannels(ch)
-            # wav.setsampwidth(audio.get_sample_size(audio_fmt))
-            # wav.setframerate(sampling_rate)
-            # wav.writeframes(b''.join(frames))
-            # wav.close()
-            #
-            # #新たに音声ファイルを作成
-            # file_path = str(now) + ".wav"  # 音声を保存するファイル名
-            # wav = wave.open(file_path, 'wb')
-            # wav.setnchannels(ch)
-            # wav.setsampwidth(audio.get_sample_size(audio_fmt))
-            # wav.setframerate(sampling_rate)
+            # 動画
+            _, frame = cap.read()
+            frame = cv2.resize(frame, size)
+            writer.write(frame)
 
-            #新たに動画ファイルを作成
-            cnt = 0
-            writer.release()
-            writer = cv2.VideoWriter(str(now) + '.mov', fmt, fps, size)
+            cv2.imshow('frame', frame)
+            if cv2.waitKey(1) == 13:
+                writer.release()
+                now = datetime.datetime.now()
+                writer = cv2.VideoWriter(str(now) + '.mov', fmt, fps, size)
+            elif cv2.waitKey(1) == 113:
+                break
 
-# # 録音終了処理
-# audio_stream.stop_stream()
-# audio_stream.close()
-# audio.terminate()
-# wav.close()
+            cnt += 1
+            sec = int(cnt / fps)
+            if(sec == rec_time):
+                print(cnt)
+                # 時間取得
+                now = datetime.datetime.now()
+                # 音声
+                file_path = str(now) + ".wav"  # 音声を保存するファイル名
+                # ストリーミングを止める場所
+                af.stream.stop_stream()
+                af.stream.close()
+                af.close()
+                # 音声
+                # 録音データをファイルに保存
+                wav = wave.open(file_path, 'wb')
+                wav.setnchannels(af.channels)
+                wav.setsampwidth(af.p.get_sample_size(af.format))
+                wav.setframerate(af.rate)
+                wav.writeframes(b''.join(frames))
+                wav.close()
 
-# 動画終了処理
-writer.release()
-cap.release()
-cv2.destroyAllWindows()
+                af = AudioFilter()
+                # ストリーミングを始める場所
+                af.stream.start_stream()
+                print(af.channels, af.p.get_sample_size(af.format))
+
+                #新たに動画ファイルを作成
+                cnt = 0
+                writer.release()
+                writer = cv2.VideoWriter(str(now) + '.mov', fmt, fps, size)
+
+    # ストリーミングを止める場所
+    af.stream.stop_stream()
+    af.stream.close()
+    af.close()
+    # 音声
+    # 録音データをファイルに保存
+    wav = wave.open(file_path, 'wb')
+    wav.setnchannels(af.channels)
+    wav.setsampwidth(af.p.get_sample_size(af.format))
+    wav.setframerate(af.rate)
+    wav.writeframes(b''.join(frames))
+    wav.close()
+    # 動画終了処理
+    writer.release()
+    cap.release()
+    cv2.destroyAllWindows()
