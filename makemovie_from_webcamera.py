@@ -7,21 +7,21 @@ import wave
 #時間取得
 now = datetime.datetime.now()
 
-rec_time = 3  # 録音時間[s]
+rec_time = 10  # 録音時間[s]
 
 class AudioFilter():
     def __init__(self):
         # オーディオに関する設定
         self.p = pyaudio.PyAudio()
         self.channels = 2 # マイクがモノラルの場合は1にしないといけない
-        self.rate = 24000 # DVDレベルなので重かったら16000にする
+        self.rate = 16000 # DVDレベルなので重かったら16000にする
         self.format = pyaudio.paInt16
         self.chunk = 1024
         self.stream = self.p.open(
                         format=self.format,
                         channels=self.channels,
                         rate=self.rate,
-                        output=True,
+                        output=False,
                         input=True,
                         frames_per_buffer=self.chunk,
                         stream_callback=self.callback)
@@ -32,7 +32,7 @@ class AudioFilter():
         # data = self.stream.read(self.chunk)
         #print(out_data)
         frames.append(out_data)
-        return (out_data, pyaudio.paContinue)
+        return (out_data,pyaudio.paContinue)
 
     def close(self):
         self.p.terminate()
@@ -45,12 +45,22 @@ if __name__ == "__main__":
     # ストリーミングを始める場所
     af.stream.start_stream()
 
+    ## 音声
+    # 録音データをファイルに保存
+    file_path = str(now) + ".wav"  # 音声を保存するファイル名
+    wav = wave.open(file_path, 'wb')
+    wav.setframerate(af.rate)
+    wav.setnchannels(af.channels)
+    wav.setsampwidth(af.p.get_sample_size(af.format))
+    wav.setframerate(af.rate)
+
     ##動画
     cap = cv2.VideoCapture(0)
     fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
-    fps = 40.0
+    fps = 20
     size = (640, 360)
     writer = cv2.VideoWriter(str(now)+'.mov', fmt, fps, size)
+
     cnt = 0
 
     while 1:
@@ -65,9 +75,7 @@ if __name__ == "__main__":
 
             cv2.imshow('frame', frame)
             if cv2.waitKey(1) == 13:
-                writer.release()
-                now = datetime.datetime.now()
-                writer = cv2.VideoWriter(str(now) + '.mov', fmt, fps, size)
+                break
             elif cv2.waitKey(1) == 113:
                 break
 
@@ -85,17 +93,26 @@ if __name__ == "__main__":
                 af.close()
                 # 音声
                 # 録音データをファイルに保存
-                wav = wave.open(file_path, 'wb')
-                wav.setnchannels(af.channels)
-                wav.setsampwidth(af.p.get_sample_size(af.format))
-                wav.setframerate(af.rate)
+                # wav = wave.open(file_path, 'wb')
+                # wav.setnchannels(af.channels)
+                # wav.setsampwidth(af.p.get_sample_size(af.format))
+                # wav.setframerate(af.rate)
+
                 wav.writeframes(b''.join(frames))
                 wav.close()
 
+                frames.clear()
                 af = AudioFilter()
                 # ストリーミングを始める場所
                 af.stream.start_stream()
                 print(af.channels, af.p.get_sample_size(af.format))
+
+                # 新たに音声ファイルを作成
+                file_path = str(now) + ".wav"  # 音声を保存するファイル名
+                wav = wave.open(file_path, 'wb')
+                wav.setnchannels(af.channels)
+                wav.setsampwidth(af.p.get_sample_size(af.format))
+                wav.setframerate(af.rate)
 
                 #新たに動画ファイルを作成
                 cnt = 0
