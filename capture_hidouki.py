@@ -5,7 +5,7 @@ import pyaudio
 import wave
 import time
 import threading
-
+import os
 
 def f():
     ##動画
@@ -19,9 +19,13 @@ def f():
             count += 1
             # 音声
             # 動画
+            t1 = time.time()
             _, frame = cap.read()
             frame = cv2.resize(frame, size)
             writer.write(frame)
+            t2 = time.time() - t1
+
+            #print(t2)
 
             # 1秒で何フレーム書いたのか計測
             now_time = time.time() - start
@@ -31,22 +35,36 @@ def f():
                 diff = count
                 start = time.time()
 
-            #imshowをしたあとはwaitKeyなどで少しでも待たないと描画できない
-            # if cv2.waitKey(1) == 113:
-            #      break
-            time.sleep(1/65)
+
+            #writerに書き加える処理の時間がバラバラなのでスリープタイムを変動させる
+            wait_time = (1/15) - t2
+            if(wait_time > 0):
+                time.sleep(wait_time)
         else:       #ファイルを生成する。
             # 新たに動画ファイルを作成
             writer.release()
             # fps = cnt / rec_time
             print("fpsは" + str(fps))
-            writer = cv2.VideoWriter(str(now) + '.mov', fmt, 15, size)
+            video_file_name = str(now).split(' ')[1] + ".mp4"
+
+            writer = cv2.VideoWriter(video_file_name, fmt, 15, size)
 
             _, frame = cap.read()
             frame = cv2.resize(frame, size)
+
             writer.write(frame)
 
-            time.sleep(1/65)
+            # 生贄となる音楽ファイルの名前
+            str_time_sacrifice = str(pre_time_tmp).split(' ')[1]
+
+            # 最終的に生成する音声つき動画ファイルの名前
+            sp1 = str(now).split(' ')[1]
+            sp2 = str(sp1).split(':')
+            str_time_movie = sp2[0] + "h" + sp2[1] + "m" + str(round(float(sp2[2]))) + "s"
+
+            os.system('ffmpeg -i ./' + str_time_sacrifice + '.mp4 -i ./' + str_time_sacrifice + '.mp3  -vcodec copy -acodec copy ' + str_time_movie + '.mov')
+
+            time.sleep(1/15)
             write_flag = False
 
 
@@ -97,7 +115,7 @@ write_flag = False      #Trueにすると、動画ファイルを区切り、新
 
 ##動画
 # 0-4でソースが変わる
-cap = cv2.VideoCapture(4)
+cap = cv2.VideoCapture(3)
 print(cap.set(cv2.CAP_PROP_FPS, 30))
 print(cap.get(cv2.CAP_PROP_FPS))
 fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
@@ -105,7 +123,8 @@ fmt = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
 fps = 30.0
 size = (1920, 960)
 #size = (640, 360)
-writer = cv2.VideoWriter(str(now) + '.mov', fmt, 15, size)
+video_file_name = str(now).split(' ')[1] + '.mp4'
+writer = cv2.VideoWriter(video_file_name, fmt, 15, size)
 
 
 
@@ -115,10 +134,10 @@ if __name__ == "__main__":
     # ストリーミングを始める場所
     af.stream.start_stream()
 
-    file_path = str(now) + ".wav"  # 音声を保存するファイル名
+    file_path = str(now).split(' ')[1] + ".mp3"  # 音声を保存するファイル名
 
     start = time.time()
-    start2 = time.time()
+    start2 = time.time()        #1sec計測用
 
     cnt = 0
     i=0
@@ -151,13 +170,13 @@ if __name__ == "__main__":
             #print(cnt,"sec=",sec)
             #sec = int(now_time)
             if (sec == rec_time):
-                write_flag = True       #動画ファイルを書き込む
 
 
                 print("はじめ")
                 elapsed_time = time.time() - start
                 print(cnt,elapsed_time)
                 # 時間取得
+                pre_time_tmp = now
                 now = datetime.datetime.now()
                 # 音声
                 # ストリーミングを止める場所
@@ -167,13 +186,16 @@ if __name__ == "__main__":
                 # 音声
                 # 録音データをファイルに保存
                 wav = wave.open(file_path, 'wb')
-                file_path = str(now) + ".wav"  # 音声を保存するファイル名
+                file_path = str(now).split(' ')[1] + ".mp3"  # 音声を保存するファイル名
 
                 wav.setnchannels(af.channels)
                 wav.setsampwidth(af.p.get_sample_size(af.format))
                 wav.setframerate(af.rate)
                 wav.writeframes(b''.join(frames))
                 wav.close()
+
+                write_flag = True       #動画ファイルを書き込む
+
                 del frames
                 frames = []
                 af = AudioFilter()
