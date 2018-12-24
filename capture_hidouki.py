@@ -17,15 +17,15 @@ def f():
     while 1:
         if cap.isOpened() and write_flag==False:
             count += 1
-            # 音声
-            # 動画
+            ###時間計測 開始
             t1 = time.time()
+
             _, frame = cap.read()
             frame = cv2.resize(frame, size)
             writer.write(frame)
-            t2 = time.time() - t1
 
-            #print(t2)
+            ###時間計測 終了
+            t2 = time.time() - t1
 
             # 1秒で何フレーム書いたのか計測
             now_time = time.time() - start
@@ -35,11 +35,11 @@ def f():
                 diff = count
                 start = time.time()
 
-
             #writerに書き加える処理の時間がバラバラなのでスリープタイムを変動させる
             wait_time = (1/15) - t2
             if(wait_time > 0):
                 time.sleep(wait_time)
+
         else:       #ファイルを生成する。
             # 新たに動画ファイルを作成
             writer.release()
@@ -107,7 +107,7 @@ class AudioFilter():
 # 時間取得
 now = datetime.datetime.now()
 
-rec_time = 30  # 録音時間[s]
+rec_time = 10  # 録音時間[s]
 
 frames = []
 
@@ -129,15 +129,8 @@ writer = cv2.VideoWriter(video_file_name, fmt, 15, size)
 
 
 if __name__ == "__main__":
-    # AudioFilterのインスタンスを作る場所
-    af = AudioFilter()
-    # ストリーミングを始める場所
-    af.stream.start_stream()
 
-    file_path = str(now).split(' ')[1] + ".mp3"  # 音声を保存するファイル名
 
-    start = time.time()
-    start2 = time.time()        #1sec計測用
 
     cnt = 0
     i=0
@@ -149,6 +142,16 @@ if __name__ == "__main__":
     th.start()
     print("thread start!!")
     # スレッドの開始
+
+    # AudioFilterのインスタンスを作る場所
+    af = AudioFilter()
+    # ストリーミングを始める場所
+    af.stream.start_stream()
+
+    file_path = str(now).split(' ')[1] + ".mp3"  # 音声を保存するファイル名
+
+    start = time.time()
+    start2 = time.time()        #1sec計測用
     while 1:
         if cap.isOpened():
             # 音声
@@ -166,14 +169,14 @@ if __name__ == "__main__":
                 frames = []
 
             cnt += 1
-            sec = int(cnt / fps)
+            #sec = int(cnt / fps)
             #print(cnt,"sec=",sec)
-            #sec = int(now_time)
+            elapsed_time = time.time() - start
+            sec = int(elapsed_time)
             if (sec == rec_time):
 
 
                 print("はじめ")
-                elapsed_time = time.time() - start
                 print(cnt,elapsed_time)
                 # 時間取得
                 pre_time_tmp = now
@@ -207,7 +210,7 @@ if __name__ == "__main__":
 
                 print("終わり")
                 cnt = 0
-        time.sleep(1/33)
+        time.sleep(1/50)
 
 
 
